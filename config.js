@@ -9,9 +9,9 @@
 // ========================================================
 
 window.SUPABASE_CONFIG = {
-  // 1. Supabase 프로젝트 URL (예: "https://abcdefghijklmn.supabase.co")
-  url: "",
+  // 1. Supabase 프로젝트 URL
+  url: "https://scsvqbqenycygncqvydf.supabase.co",
 
-  // 2. Supabase Anon Public API Key (예: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-  anonKey: ""
+  // 2. Supabase Anon Public API Key
+  anonKey: "sb_publishable_s2nwRYUHtcQX6vP02GjdAQ_gC0D-3Ls"
 };
