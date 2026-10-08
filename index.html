@@ -14,6 +14,8 @@
   <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
   <!-- Canvas Confetti for senior celebration -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Pretendard / Nunito Fonts -->
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
 
@@ -51,6 +53,7 @@
             'btn-blue': '0 4px 0 #1482ba',
             'btn-gray': '0 4px 0 #afafaf',
             'btn-orange': '0 4px 0 #d97706',
+            'btn-emerald': '0 4px 0 #059669',
             'card': '0 4px 20px rgba(0, 0, 0, 0.06)',
           }
         }
@@ -81,30 +84,40 @@
 
   <!-- Top Navigation Bar -->
   <header class="bg-white border-b-2 border-gray-200 sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-3">
       <!-- Logo & Title -->
       <div class="flex items-center space-x-3">
-        <div class="w-12 h-12 rounded-2xl bg-eager flex items-center justify-center text-white shadow-md">
+        <div class="w-12 h-12 rounded-2xl bg-eager flex items-center justify-center text-white shadow-md flex-shrink-0">
           <i data-lucide="clipboard-check" class="w-7 h-7"></i>
         </div>
         <div>
-          <h1 class="text-xl sm:text-2xl font-black text-charcoal tracking-tight flex items-center gap-2">
+          <h1 class="text-lg sm:text-2xl font-black text-charcoal tracking-tight flex items-center gap-2">
             노인일자리 활동일지 <span class="text-xs sm:text-sm font-bold bg-eager-light text-eager-dark px-2.5 py-0.5 rounded-full border border-eager">스마트 체크</span>
           </h1>
-          <p class="text-xs sm:text-sm text-pencil font-medium">화성남부노인복지관 마크다운(MD) 파일 기반 관리도구</p>
+          <p class="text-xs sm:text-sm text-pencil font-medium hidden sm:block">화성남부노인복지관 마크다운 & 수파베이스(Supabase) 연동 관리도구</p>
         </div>
       </div>
 
-      <!-- Mode Switcher Tabs -->
-      <div class="flex items-center bg-gray-100 p-1.5 rounded-2xl border-2 border-gray-200">
-        <button id="tab-btn-manager" onclick="switchMode('manager')" class="px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all bg-white text-eager-dark shadow-sm border border-gray-200">
-          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-          <span>담당자 관리 모드</span>
+      <!-- Right Action & Mode Switcher -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Supabase Cloud Connection Button -->
+        <button onclick="openSupabaseModal()" id="supabase-nav-btn" class="duo-btn bg-white border-2 border-emerald-300 text-emerald-700 font-extrabold px-3 py-2 rounded-2xl shadow-sm hover:bg-emerald-50 flex items-center gap-2 text-xs sm:text-sm">
+          <span id="supabase-status-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+          <span id="supabase-status-text" class="hidden md:inline">수파베이스 설정</span>
+          <span class="md:hidden">DB연동</span>
         </button>
-        <button id="tab-btn-senior" onclick="switchMode('senior')" class="px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all text-pencil hover:text-charcoal">
-          <i data-lucide="smile" class="w-5 h-5"></i>
-          <span>어르신 작성 모드 (큰 글씨)</span>
-        </button>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="flex items-center bg-gray-100 p-1.5 rounded-2xl border-2 border-gray-200">
+          <button id="tab-btn-manager" onclick="switchMode('manager')" class="px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-base flex items-center gap-1.5 transition-all bg-white text-eager-dark shadow-sm border border-gray-200">
+            <i data-lucide="layout-dashboard" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            <span>담당자 모드</span>
+          </button>
+          <button id="tab-btn-senior" onclick="switchMode('senior')" class="px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-base flex items-center gap-1.5 transition-all text-pencil hover:text-charcoal">
+            <i data-lucide="smile" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            <span>어르신 작성</span>
+          </button>
+        </div>
       </div>
     </div>
   </header>
@@ -120,40 +133,44 @@
       <!-- Top Action Banner (Folder Connect & Stats) -->
       <div class="bg-white rounded-3xl p-6 border-2 border-gray-200 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div class="space-y-1">
-          <div class="flex items-center gap-2">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-spark-light text-spark-dark border border-spark">
-              <i data-lucide="folder-git-2" class="w-3.5 h-3.5 mr-1"></i> 로컬 폴더 연동
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="sync-source-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-spark-light text-spark-dark border border-spark">
+              <i data-lucide="folder-git-2" class="w-3.5 h-3.5 mr-1"></i> 로컬 & 파일 모드
             </span>
             <span id="folder-status-badge" class="text-xs text-pencil font-medium">
-              기본 샘플 폴더 로드됨 (활동일지_데이터)
+              기본 샘플 데이터 로드됨
             </span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-charcoal">
-            활동일지 MD 파일 체크 & 관리
+            활동일지 통합 체크 & 클라우드 관리
           </h2>
           <p class="text-sm text-pencil">
-            폴더 내의 <code class="bg-gray-100 px-1.5 py-0.5 rounded text-charcoal font-semibold">.md</code> 활동일지를 자동으로 읽고, 상태를 검토하거나 엑셀로 다운로드합니다.
+            수파베이스(Supabase) 클라우드 DB와 로컬 <code class="bg-gray-100 px-1.5 py-0.5 rounded text-charcoal font-semibold">.md</code> 파일을 실시간으로 연동하여 관리합니다.
           </p>
         </div>
 
         <!-- Folder & Action Buttons -->
         <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <button onclick="openLocalFolder()" class="duo-btn bg-spark text-white font-bold px-4 py-2.5 rounded-2xl shadow-btn-blue hover:bg-spark-dark flex items-center gap-2 text-sm sm:text-base">
-            <i data-lucide="folder-open" class="w-5 h-5"></i>
+          <button onclick="openSupabaseModal()" class="duo-btn bg-emerald-600 text-white font-bold px-3.5 py-2.5 rounded-2xl shadow-btn-emerald hover:bg-emerald-700 flex items-center gap-2 text-sm">
+            <i data-lucide="database" class="w-4 h-4"></i>
+            <span>수파베이스 DB</span>
+          </button>
+          <button onclick="openLocalFolder()" class="duo-btn bg-spark text-white font-bold px-3.5 py-2.5 rounded-2xl shadow-btn-blue hover:bg-spark-dark flex items-center gap-2 text-sm">
+            <i data-lucide="folder-open" class="w-4 h-4"></i>
             <span>내 폴더 열기</span>
           </button>
-          <button onclick="exportToExcel()" class="duo-btn bg-eager text-white font-bold px-4 py-2.5 rounded-2xl shadow-btn-green hover:bg-eager-dark flex items-center gap-2 text-sm sm:text-base">
-            <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
-            <span>엑셀(Excel) 다운로드</span>
+          <button onclick="exportToExcel()" class="duo-btn bg-eager text-white font-bold px-3.5 py-2.5 rounded-2xl shadow-btn-green hover:bg-eager-dark flex items-center gap-2 text-sm">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span>엑셀(Excel)</span>
           </button>
           <button onclick="triggerBatchApprove()" class="duo-btn bg-white border-2 border-gray-300 text-charcoal font-bold px-3 py-2.5 rounded-2xl shadow-sm hover:bg-gray-50 flex items-center gap-1.5 text-sm">
             <i data-lucide="check-check" class="w-4 h-4 text-eager"></i>
-            <span>일괄 확인 완료</span>
+            <span>일괄 확인</span>
           </button>
         </div>
       </div>
 
-      <!-- Statistics KPI Cards -->
+      <!-- Statistics KPI Cards (3 Cards) -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Card 1: Total Logs -->
         <div class="bg-white p-5 rounded-3xl border-2 border-gray-200 shadow-sm flex items-center justify-between">
@@ -444,7 +461,109 @@
   </main>
 
   <!-- ======================================================== -->
-  <!-- MODAL: LOG DETAIL & EDIT (담당자 상세조회 및 수정 모달) -->
+  <!-- MODAL 1: SUPABASE CONFIGURATION (수파베이스 연동 팝업) -->
+  <!-- ======================================================== -->
+  <div id="supabase-modal" class="fixed inset-0 bg-night/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-xl w-full border-2 border-gray-200 shadow-2xl overflow-hidden my-8 transform transition-all">
+      
+      <!-- Modal Header -->
+      <div class="p-6 bg-emerald-50 border-b-2 border-emerald-100 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-sm">
+            <i data-lucide="database" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-black text-charcoal">수파베이스(Supabase) DB 연동</h3>
+            <p class="text-xs text-emerald-800 font-medium">클라우드 데이터베이스 실시간 동기화 설정</p>
+          </div>
+        </div>
+        <button onclick="closeSupabaseModal()" class="w-9 h-9 rounded-full bg-gray-200 text-charcoal flex items-center justify-center hover:bg-gray-300">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+        
+        <!-- Status Banner inside modal -->
+        <div id="modal-supabase-status-banner" class="p-4 rounded-2xl bg-gray-100 border border-gray-200 text-xs sm:text-sm font-medium flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span id="modal-sb-dot" class="w-3 h-3 rounded-full bg-gray-400"></span>
+            <span id="modal-sb-text" class="text-charcoal font-bold">현재: 로컬 브라우저 저장 모드</span>
+          </div>
+          <button type="button" onclick="disconnectSupabase()" id="btn-sb-disconnect" class="hidden text-xs text-duoRed font-bold hover:underline">
+            연결 해제
+          </button>
+        </div>
+
+        <!-- Input: Project URL -->
+        <div>
+          <label class="block text-xs font-extrabold text-charcoal mb-1 flex items-center justify-between">
+            <span>1. Supabase Project URL</span>
+            <span class="text-pencil font-normal text-[11px]">예: https://abcdefghijklmn.supabase.co</span>
+          </label>
+          <input type="text" id="sb-input-url" placeholder="https://your-project-id.supabase.co" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-charcoal focus:border-emerald-500 focus:outline-none">
+        </div>
+
+        <!-- Input: Anon Public Key -->
+        <div>
+          <label class="block text-xs font-extrabold text-charcoal mb-1 flex items-center justify-between">
+            <span>2. Supabase Anon Public API Key</span>
+            <span class="text-pencil font-normal text-[11px]">대시보드 > Project Settings > API</span>
+          </label>
+          <input type="password" id="sb-input-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-charcoal focus:border-emerald-500 focus:outline-none">
+        </div>
+
+        <!-- Table SQL Guide Box -->
+        <details class="bg-gray-50 rounded-2xl p-4 border border-gray-200 text-xs">
+          <summary class="font-black text-charcoal cursor-pointer flex items-center justify-between">
+            <span>💡 Supabase 테이블 생성 SQL 쿼리 보기</span>
+            <span class="text-emerald-600 font-bold">펼치기</span>
+          </summary>
+          <div class="mt-3 space-y-2">
+            <p class="text-pencil">Supabase 대시보드 ➔ <strong>SQL Editor</strong> ➔ <strong>New Query</strong>에 아래 SQL을 붙여넣고 [Run]을 누르세요. (<a href="file:///c:/Users/bestl/Desktop/화성남부/supabase_schema.sql" class="text-spark underline font-bold" target="_blank">supabase_schema.sql</a> 파일 제공됨)</p>
+            <pre class="p-3 bg-night text-fresh rounded-xl overflow-x-auto text-[11px] font-mono leading-relaxed max-h-40">
+CREATE TABLE public.activity_logs (
+    id TEXT PRIMARY KEY,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    program_type TEXT NOT NULL DEFAULT '공익활동형',
+    group_name TEXT NOT NULL,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT '담당자 확인 중',
+    hours NUMERIC NOT NULL DEFAULT 3,
+    time_range TEXT DEFAULT '09:00 ~ 12:00',
+    activity_items JSONB DEFAULT '[]'::jsonb,
+    health_condition TEXT DEFAULT '양호',
+    note TEXT DEFAULT '',
+    reviewer TEXT DEFAULT '',
+    reviewed_at TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public on activity_logs" ON public.activity_logs FOR ALL USING (true);
+ALTER PUBLICATION supabase_realtime ADD TABLE public.activity_logs;</pre>
+          </div>
+        </details>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-5 bg-gray-50 border-t-2 border-gray-200 flex items-center justify-between">
+        <button onclick="closeSupabaseModal()" class="px-4 py-2 rounded-xl text-sm font-bold text-pencil hover:bg-gray-200">
+          닫기
+        </button>
+        <button onclick="saveAndTestSupabase()" id="btn-save-sb" class="duo-btn px-6 py-2.5 rounded-xl text-sm font-extrabold bg-emerald-600 text-white shadow-btn-emerald hover:bg-emerald-700 flex items-center gap-2">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>연결 테스트 및 저장</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL 2: LOG DETAIL & EDIT (담당자 상세조회 및 수정 모달) -->
   <!-- ======================================================== -->
   <div id="detail-modal" class="fixed inset-0 bg-night/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-3xl max-w-2xl w-full border-2 border-gray-200 shadow-2xl overflow-hidden my-8 transform transition-all">
@@ -457,7 +576,7 @@
           </div>
           <div>
             <h3 class="text-xl font-black text-charcoal" id="modal-title">활동일지 상세 및 수정</h3>
-            <p class="text-xs text-pencil" id="modal-subtitle">MD 파일 메타데이터 및 본문 수정</p>
+            <p class="text-xs text-pencil" id="modal-subtitle">클라우드 DB & MD 파일 메타데이터 수정</p>
           </div>
         </div>
         <button onclick="closeModal()" class="w-9 h-9 rounded-full bg-gray-200 text-charcoal flex items-center justify-center hover:bg-gray-300">
@@ -597,7 +716,7 @@
       ]
     };
 
-    // Initial Sample In-Memory Logs (parsed from sample md files)
+    // Initial Default In-Memory Logs
     let activityLogs = [
       {
         id: '2026-09-29-공원환경관리-김영희',
@@ -681,6 +800,37 @@
       }
     ];
 
+    // Supabase State
+    let supabaseClient = null;
+    let isSupabaseConnected = false;
+
+    // Senior Form State
+    let seniorSelectedGroup = '공원환경관리';
+    let seniorSelectedName = '';
+    let seniorSelectedHealth = '양호';
+
+    // File System Directory Handle
+    let directoryHandle = null;
+
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', async () => {
+      loadSavedLogs();
+      lucide.createIcons();
+      initSeniorView();
+      renderManagerList();
+      updateStats();
+
+      // Set today's date on filters and senior form
+      const today = new Date().toISOString().split('T')[0];
+      const seniorDateInput = document.getElementById('senior-date');
+      if (seniorDateInput) seniorDateInput.value = today;
+
+      // Initialize Supabase if config exists
+      await initSupabaseFromStorage();
+    });
+
     // Local Storage Sync
     function loadSavedLogs() {
       const saved = localStorage.getItem('hwaseong_activity_logs');
@@ -697,29 +847,238 @@
       localStorage.setItem('hwaseong_activity_logs', JSON.stringify(activityLogs));
     }
 
-    // Senior State
-    let seniorSelectedGroup = '공원환경관리';
-    let seniorSelectedName = '';
-    let seniorSelectedHealth = '양호';
+    // ==========================================
+    // SUPABASE INTEGRATION ENGINE
+    // ==========================================
+    async function initSupabaseFromStorage() {
+      const sbUrl = localStorage.getItem('hwaseong_sb_url');
+      const sbKey = localStorage.getItem('hwaseong_sb_key');
 
-    // File System Directory Handle (if opened)
-    let directoryHandle = null;
+      if (sbUrl && sbKey && window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+          // Test query
+          const { data, error } = await supabaseClient.from('activity_logs').select('*').limit(1);
+          if (!error) {
+            isSupabaseConnected = true;
+            updateSupabaseUIState(true, sbUrl);
+            await fetchLogsFromSupabase();
+            subscribeToSupabaseRealtime();
+            return;
+          } else {
+            console.warn("Supabase query check failed:", error);
+          }
+        } catch (err) {
+          console.error("Supabase init error:", err);
+        }
+      }
+      updateSupabaseUIState(false);
+    }
 
-    // Initialize App
-    window.addEventListener('DOMContentLoaded', () => {
-      loadSavedLogs();
+    function updateSupabaseUIState(connected, url = '') {
+      const dot = document.getElementById('supabase-status-dot');
+      const text = document.getElementById('supabase-status-text');
+      const badge = document.getElementById('sync-source-badge');
+      const mDot = document.getElementById('modal-sb-dot');
+      const mText = document.getElementById('modal-sb-text');
+      const btnDisconnect = document.getElementById('btn-sb-disconnect');
+
+      if (connected) {
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse';
+        if (text) text.innerText = '⚡ Supabase 실시간 연동됨';
+        if (badge) {
+          badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-400';
+          badge.innerHTML = '<i data-lucide="cloud-check" class="w-3.5 h-3.5 mr-1"></i> 수파베이스 클라우드 동기화 중';
+        }
+        if (mDot) mDot.className = 'w-3 h-3 rounded-full bg-emerald-500';
+        if (mText) mText.innerHTML = `<span class="text-emerald-700 font-black">연결됨: ${url.replace('https://', '').split('.')[0]}</span> (실시간 동기화 활성)`;
+        if (btnDisconnect) btnDisconnect.classList.remove('hidden');
+      } else {
+        if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-gray-400';
+        if (text) text.innerText = '수파베이스 설정';
+        if (badge) {
+          badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-spark-light text-spark-dark border border-spark';
+          badge.innerHTML = '<i data-lucide="folder-git-2" class="w-3.5 h-3.5 mr-1"></i> 로컬 브라우저 & MD 파일 모드';
+        }
+        if (mDot) mDot.className = 'w-3 h-3 rounded-full bg-gray-400';
+        if (mText) mText.innerText = '현재: 로컬 브라우저 저장 모드 (클라우드 미연동)';
+        if (btnDisconnect) btnDisconnect.classList.add('hidden');
+      }
       lucide.createIcons();
-      initSeniorView();
-      renderManagerList();
-      updateStats();
+    }
 
-      // Set today's date on filters and senior form
-      const today = new Date().toISOString().split('T')[0];
-      const seniorDateInput = document.getElementById('senior-date');
-      if (seniorDateInput) seniorDateInput.value = today;
-    });
+    async function fetchLogsFromSupabase() {
+      if (!supabaseClient || !isSupabaseConnected) return;
 
-    // Mode Switcher
+      try {
+        const { data, error } = await supabaseClient
+          .from('activity_logs')
+          .select('*')
+          .order('date', { ascending: false });
+
+        if (error) {
+          console.error("Error fetching logs from Supabase:", error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          activityLogs = data.map(row => ({
+            id: row.id,
+            fileName: `${row.date}_${row.group_name}_${row.name}.md`,
+            date: row.date,
+            program_type: row.program_type || '공익활동형',
+            group_name: row.group_name,
+            name: row.name,
+            status: row.status || '담당자 확인 중',
+            hours: Number(row.hours) || 3,
+            time_range: row.time_range || '09:00 ~ 12:00',
+            activity_items: Array.isArray(row.activity_items) ? row.activity_items : [],
+            health_condition: row.health_condition || '양호',
+            note: row.note || '',
+            reviewer: row.reviewer || '',
+            reviewed_at: row.reviewed_at || ''
+          }));
+          persistLogs();
+          renderManagerList();
+          updateStats();
+        }
+      } catch (err) {
+        console.error("fetchLogsFromSupabase failed:", err);
+      }
+    }
+
+    function subscribeToSupabaseRealtime() {
+      if (!supabaseClient) return;
+
+      supabaseClient
+        .channel('public:activity_logs')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_logs' }, (payload) => {
+          console.log('Realtime update received:', payload);
+          fetchLogsFromSupabase();
+          showToast('클라우드 DB에서 최신 활동일지가 실시간 갱신되었습니다! ⚡', 'refresh-cw');
+        })
+        .subscribe();
+    }
+
+    // Upsert Log into Supabase
+    async function syncLogToSupabase(log) {
+      if (!supabaseClient || !isSupabaseConnected) return;
+
+      try {
+        const payload = {
+          id: log.id,
+          date: log.date,
+          program_type: log.program_type || '공익활동형',
+          group_name: log.group_name,
+          name: log.name,
+          status: log.status,
+          hours: log.hours || 3,
+          time_range: log.time_range || '09:00 ~ 12:00',
+          activity_items: log.activity_items || [],
+          health_condition: log.health_condition || '양호',
+          note: log.note || '',
+          reviewer: log.reviewer || '',
+          reviewed_at: log.reviewed_at || '',
+          updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabaseClient
+          .from('activity_logs')
+          .upsert(payload, { onConflict: 'id' });
+
+        if (error) {
+          console.error("Supabase upsert error:", error);
+          showToast('수파베이스 DB 저장 중 오류가 발생했습니다: ' + error.message, 'alert-circle');
+        }
+      } catch (err) {
+        console.error("syncLogToSupabase exception:", err);
+      }
+    }
+
+    async function deleteLogFromSupabase(id) {
+      if (!supabaseClient || !isSupabaseConnected) return;
+      try {
+        await supabaseClient.from('activity_logs').delete().eq('id', id);
+      } catch (err) {
+        console.error("Supabase delete error:", err);
+      }
+    }
+
+    // Modal controls for Supabase
+    function openSupabaseModal() {
+      const sbUrl = localStorage.getItem('hwaseong_sb_url') || '';
+      const sbKey = localStorage.getItem('hwaseong_sb_key') || '';
+      document.getElementById('sb-input-url').value = sbUrl;
+      document.getElementById('sb-input-key').value = sbKey;
+      document.getElementById('supabase-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeSupabaseModal() {
+      document.getElementById('supabase-modal').classList.add('hidden');
+    }
+
+    async function saveAndTestSupabase() {
+      const url = document.getElementById('sb-input-url').value.trim();
+      const key = document.getElementById('sb-input-key').value.trim();
+      const btn = document.getElementById('btn-save-sb');
+
+      if (!url || !key) {
+        alert('Supabase Project URL과 Anon Key를 모두 입력해주세요.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = '연결 확인 중...';
+
+      try {
+        const client = window.supabase.createClient(url, key);
+        const { data, error } = await client.from('activity_logs').select('id').limit(1);
+
+        if (error) {
+          alert(`Supabase 연결 실패: ${error.message}\n\n(참고: 'public.activity_logs' 테이블이 아직 생성되지 않았을 수 있습니다. 하단의 테이블 생성 SQL을 먼저 실행해 주세요.)`);
+          btn.disabled = false;
+          btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>연결 테스트 및 저장</span>';
+          lucide.createIcons();
+          return;
+        }
+
+        // Success!
+        localStorage.setItem('hwaseong_sb_url', url);
+        localStorage.setItem('hwaseong_sb_key', key);
+        supabaseClient = client;
+        isSupabaseConnected = true;
+
+        updateSupabaseUIState(true, url);
+        await fetchLogsFromSupabase();
+        subscribeToSupabaseRealtime();
+
+        closeSupabaseModal();
+        showToast('🎉 Supabase 클라우드 데이터베이스에 성공적으로 연결되었습니다!', 'database');
+      } catch (err) {
+        alert('오류 발생: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>연결 테스트 및 저장</span>';
+        lucide.createIcons();
+      }
+    }
+
+    function disconnectSupabase() {
+      if (confirm('Supabase 클라우드 연동을 해제하고 로컬 모드로 전환하시겠습니까?')) {
+        localStorage.removeItem('hwaseong_sb_url');
+        localStorage.removeItem('hwaseong_sb_key');
+        supabaseClient = null;
+        isSupabaseConnected = false;
+        updateSupabaseUIState(false);
+        closeSupabaseModal();
+        showToast('Supabase 연결이 해제되어 로컬 모드로 전환되었습니다.', 'info');
+      }
+    }
+
+    // ==========================================
+    // MODE SWITCHER
+    // ==========================================
     function switchMode(mode) {
       const managerView = document.getElementById('manager-view');
       const seniorView = document.getElementById('senior-view');
@@ -729,15 +1088,15 @@
       if (mode === 'manager') {
         managerView.classList.remove('hidden');
         seniorView.classList.add('hidden');
-        tabMgr.className = 'px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all bg-white text-eager-dark shadow-sm border border-gray-200';
-        tabSnr.className = 'px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all text-pencil hover:text-charcoal';
+        tabMgr.className = 'px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-base flex items-center gap-1.5 transition-all bg-white text-eager-dark shadow-sm border border-gray-200';
+        tabSnr.className = 'px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-base flex items-center gap-1.5 transition-all text-pencil hover:text-charcoal';
         renderManagerList();
         updateStats();
       } else {
         managerView.classList.add('hidden');
         seniorView.classList.remove('hidden');
-        tabSnr.className = 'px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all bg-white text-eager-dark shadow-sm border border-gray-200';
-        tabMgr.className = 'px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all text-pencil hover:text-charcoal';
+        tabSnr.className = 'px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-base flex items-center gap-1.5 transition-all bg-white text-eager-dark shadow-sm border border-gray-200';
+        tabMgr.className = 'px-3 sm:px-4 py-2 rounded-xl font-bold text-xs sm:text-base flex items-center gap-1.5 transition-all text-pencil hover:text-charcoal';
         initSeniorView();
       }
       lucide.createIcons();
@@ -746,7 +1105,6 @@
     // ==========================================
     // MANAGER VIEW LOGIC
     // ==========================================
-
     function updateStats() {
       const total = activityLogs.length;
       const pending = activityLogs.filter(l => l.status === '담당자 확인 중').length;
@@ -849,7 +1207,7 @@
       lucide.createIcons();
     }
 
-    function toggleLogStatus(id) {
+    async function toggleLogStatus(id) {
       const log = activityLogs.find(l => l.id === id);
       if (!log) return;
 
@@ -866,11 +1224,12 @@
       }
 
       persistLogs();
+      await syncLogToSupabase(log);
       renderManagerList();
       updateStats();
     }
 
-    function triggerBatchApprove() {
+    async function triggerBatchApprove() {
       const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
       let targetIds = [];
       if (checkedBoxes.length > 0) {
@@ -885,14 +1244,15 @@
         return;
       }
 
-      targetIds.forEach(id => {
+      for (const id of targetIds) {
         const log = activityLogs.find(l => l.id === id);
         if (log) {
           log.status = '확인 완료';
           log.reviewer = '담당자(일괄)';
           log.reviewed_at = new Date().toLocaleString('ko-KR');
+          await syncLogToSupabase(log);
         }
-      });
+      }
 
       persistLogs();
       renderManagerList();
@@ -914,12 +1274,13 @@
       renderManagerList();
     }
 
-    function deleteLog(id) {
+    async function deleteLog(id) {
       const log = activityLogs.find(l => l.id === id);
       if (!log) return;
       if (confirm(`정말로 ${log.date} ${log.name} 어르신의 활동일지를 삭제하시겠습니까?`)) {
         activityLogs = activityLogs.filter(l => l.id !== id);
         persistLogs();
+        await deleteLogFromSupabase(id);
         renderManagerList();
         updateStats();
         showToast('활동일지가 삭제되었습니다.', 'trash-2');
@@ -929,7 +1290,6 @@
     // ==========================================
     // FILE SYSTEM & MARKDOWN GENERATION
     // ==========================================
-
     function generateMarkdownString(log) {
       const yamlFrontmatter = {
         id: log.id,
@@ -970,7 +1330,7 @@ ${activityChecks || '  - 활동 기록 없음'}
 
     async function openLocalFolder() {
       if (!window.showDirectoryPicker) {
-        showToast('이 브라우저는 폴더 직접 열기 API를 지원하지 않아 파일 열기로 대체합니다.', 'alert-circle');
+        showToast('이 브라우저는 폴더 직접 열기 API를 지원하지 않습니다.', 'alert-circle');
         return;
       }
 
@@ -983,7 +1343,13 @@ ${activityChecks || '  - 활동 기록 없음'}
             const file = await entry.getFile();
             const text = await file.text();
             const parsed = parseMarkdownFile(text, entry.name);
-            if (parsed) loadedLogs.push(parsed);
+            if (parsed) {
+              loadedLogs.push(parsed);
+              // If supabase is connected, sync loaded logs
+              if (isSupabaseConnected) {
+                await syncLogToSupabase(parsed);
+              }
+            }
           }
         }
 
@@ -993,7 +1359,7 @@ ${activityChecks || '  - 활동 기록 없음'}
           renderManagerList();
           updateStats();
           document.getElementById('folder-status-badge').innerText = `연동된 폴더: ${directoryHandle.name} (${loadedLogs.length}개 파일 로드됨)`;
-          showToast(`폴더에서 ${loadedLogs.length}개의 활동일지(.md)를 성공적으로 읽어왔습니다! 📁`, 'folder-check');
+          showToast(`폴더에서 ${loadedLogs.length}개의 활동일지(.md)를 읽어왔습니다! 📁`, 'folder-check');
         } else {
           showToast('선택한 폴더에 .md 활동일지 파일이 없습니다.', 'info');
         }
@@ -1063,7 +1429,6 @@ ${activityChecks || '  - 활동 기록 없음'}
     // ==========================================
     // DETAIL & EDIT MODAL
     // ==========================================
-
     let currentEditingLogId = null;
 
     function openDetailModal(id) {
@@ -1093,7 +1458,7 @@ ${activityChecks || '  - 활동 기록 없음'}
       currentEditingLogId = null;
     }
 
-    function saveModalChanges() {
+    async function saveModalChanges() {
       const log = activityLogs.find(l => l.id === currentEditingLogId);
       if (!log) return;
 
@@ -1114,6 +1479,7 @@ ${activityChecks || '  - 활동 기록 없음'}
       }
 
       persistLogs();
+      await syncLogToSupabase(log);
       renderManagerList();
       updateStats();
       closeModal();
@@ -1138,7 +1504,6 @@ ${activityChecks || '  - 활동 기록 없음'}
     // ==========================================
     // SENIOR VIEW LOGIC (어르신 모바일 모드)
     // ==========================================
-
     function initSeniorView() {
       renderSeniorNames(seniorSelectedGroup);
       renderSeniorActivities(seniorSelectedGroup);
@@ -1216,7 +1581,7 @@ ${activityChecks || '  - 활동 기록 없음'}
       if (activeTitle) activeTitle.className = 'senior-text-lg font-black text-eager-dark';
     }
 
-    function submitSeniorLog() {
+    async function submitSeniorLog() {
       let finalName = seniorSelectedName;
       const customName = document.getElementById('senior-custom-name').value.trim();
       if (customName) finalName = customName;
@@ -1262,6 +1627,9 @@ ${activityChecks || '  - 활동 기록 없음'}
 
       persistLogs();
 
+      // Sync to Supabase Cloud DB if connected
+      await syncLogToSupabase(newLog);
+
       // Confetti celebration!
       confetti({
         particleCount: 100,
@@ -1271,7 +1639,7 @@ ${activityChecks || '  - 활동 기록 없음'}
 
       showToast(`🎉 ${finalName} 어르신의 활동일지가 성공적으로 제출되었습니다!`, 'check-circle');
 
-      // Auto switch back to manager or stay with success notification
+      // Auto switch back to manager view after submission
       setTimeout(() => {
         switchMode('manager');
       }, 1500);
