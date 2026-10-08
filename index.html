@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>노인일자리 활동일지 스마트 관리 도구</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS for Excel Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- JS-YAML for robust Markdown Frontmatter parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+  <!-- Canvas Confetti for senior celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <!-- Pretendard / Nunito Fonts -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            eager: {
+              DEFAULT: '#58cc02',
+              dark: '#46a302',
+              light: '#d7ffb8',
+              leaf: '#a5ed6e',
+            },
+            spark: {
+              DEFAULT: '#1cb0f6',
+              dark: '#1482ba',
+              light: '#ddf4ff',
+            },
+            charcoal: '#4b4b4b',
+            pencil: '#777777',
+            faded: '#afafaf',
+            paper: '#ffffff',
+            night: '#000437',
+            duoYellow: '#ffc800',
+            duoOrange: '#ff9600',
+            duoRed: '#ff4b4b',
+          },
+          boxShadow: {
+            'btn-green': '0 4px 0 #46a302',
+            'btn-green-active': '0 1px 0 #46a302',
+            'btn-blue': '0 4px 0 #1482ba',
+            'btn-gray': '0 4px 0 #afafaf',
+            'btn-orange': '0 4px 0 #d97706',
+            'card': '0 4px 20px rgba(0, 0, 0, 0.06)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background-color: #f7f9fa;
+      color: #4b4b4b;
+    }
+    .duo-btn {
+      transition: all 0.1s ease-in-out;
+    }
+    .duo-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 currentColor;
+    }
+    /* Senior text size enhancements */
+    .senior-text-lg { font-size: 1.35rem; line-height: 1.8rem; }
+    .senior-text-xl { font-size: 1.65rem; line-height: 2.1rem; }
+    .senior-text-2xl { font-size: 2.1rem; line-height: 2.6rem; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-white border-b-2 border-gray-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <!-- Logo & Title -->
+      <div class="flex items-center space-x-3">
+        <div class="w-12 h-12 rounded-2xl bg-eager flex items-center justify-center text-white shadow-md">
+          <i data-lucide="clipboard-check" class="w-7 h-7"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-black text-charcoal tracking-tight flex items-center gap-2">
+            노인일자리 활동일지 <span class="text-xs sm:text-sm font-bold bg-eager-light text-eager-dark px-2.5 py-0.5 rounded-full border border-eager">스마트 체크</span>
+          </h1>
+          <p class="text-xs sm:text-sm text-pencil font-medium">화성남부노인복지관 마크다운(MD) 파일 기반 관리도구</p>
+        </div>
+      </div>
+
+      <!-- Mode Switcher Tabs -->
+      <div class="flex items-center bg-gray-100 p-1.5 rounded-2xl border-2 border-gray-200">
+        <button id="tab-btn-manager" onclick="switchMode('manager')" class="px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all bg-white text-eager-dark shadow-sm border border-gray-200">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+          <span>담당자 관리 모드</span>
+        </button>
+        <button id="tab-btn-senior" onclick="switchMode('senior')" class="px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all text-pencil hover:text-charcoal">
+          <i data-lucide="smile" class="w-5 h-5"></i>
+          <span>어르신 작성 모드 (큰 글씨)</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- ======================================================== -->
+    <!-- 1. MANAGER VIEW (담당자 관리 대시보드) -->
+    <!-- ======================================================== -->
+    <section id="manager-view" class="space-y-6">
+      
+      <!-- Top Action Banner (Folder Connect & Stats) -->
+      <div class="bg-white rounded-3xl p-6 border-2 border-gray-200 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-spark-light text-spark-dark border border-spark">
+              <i data-lucide="folder-git-2" class="w-3.5 h-3.5 mr-1"></i> 로컬 폴더 연동
+            </span>
+            <span id="folder-status-badge" class="text-xs text-pencil font-medium">
+              기본 샘플 폴더 로드됨 (활동일지_데이터)
+            </span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-charcoal">
+            활동일지 MD 파일 체크 & 관리
+          </h2>
+          <p class="text-sm text-pencil">
+            폴더 내의 <code class="bg-gray-100 px-1.5 py-0.5 rounded text-charcoal font-semibold">.md</code> 활동일지를 자동으로 읽고, 상태를 검토하거나 엑셀로 다운로드합니다.
+          </p>
+        </div>
+
+        <!-- Folder & Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <button onclick="openLocalFolder()" class="duo-btn bg-spark text-white font-bold px-4 py-2.5 rounded-2xl shadow-btn-blue hover:bg-spark-dark flex items-center gap-2 text-sm sm:text-base">
+            <i data-lucide="folder-open" class="w-5 h-5"></i>
+            <span>내 폴더 열기</span>
+          </button>
+          <button onclick="exportToExcel()" class="duo-btn bg-eager text-white font-bold px-4 py-2.5 rounded-2xl shadow-btn-green hover:bg-eager-dark flex items-center gap-2 text-sm sm:text-base">
+            <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+            <span>엑셀(Excel) 다운로드</span>
+          </button>
+          <button onclick="triggerBatchApprove()" class="duo-btn bg-white border-2 border-gray-300 text-charcoal font-bold px-3 py-2.5 rounded-2xl shadow-sm hover:bg-gray-50 flex items-center gap-1.5 text-sm">
+            <i data-lucide="check-check" class="w-4 h-4 text-eager"></i>
+            <span>일괄 확인 완료</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Statistics KPI Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Card 1: Total Logs -->
+        <div class="bg-white p-5 rounded-3xl border-2 border-gray-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs sm:text-sm font-bold text-pencil">전체 활동일지</p>
+            <p id="stat-total" class="text-2xl sm:text-3xl font-black text-charcoal mt-1">0건</p>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-charcoal">
+            <i data-lucide="file-text" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <!-- Card 2: Pending Approval -->
+        <div class="bg-white p-5 rounded-3xl border-2 border-amber-200 bg-amber-50/40 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs sm:text-sm font-bold text-amber-700">확인 대기 중</p>
+            <p id="stat-pending" class="text-2xl sm:text-3xl font-black text-amber-600 mt-1">0건</p>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+            <i data-lucide="clock" class="w-6 h-6"></i>
+          </div>
+        </div>
+
+        <!-- Card 3: Approved -->
+        <div class="bg-white p-5 rounded-3xl border-2 border-eager-light bg-eager-light/30 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs sm:text-sm font-bold text-eager-dark">확인 완료</p>
+            <p id="stat-approved" class="text-2xl sm:text-3xl font-black text-eager-dark mt-1">0건</p>
+          </div>
+          <div class="w-12 h-12 rounded-2xl bg-eager-light flex items-center justify-center text-eager-dark">
+            <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters & Search Toolbar -->
+      <div class="bg-white p-5 rounded-3xl border-2 border-gray-200 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2 font-bold text-charcoal">
+            <i data-lucide="sliders-horizontal" class="w-5 h-5 text-spark"></i>
+            <span>활동일지 필터링 및 검색</span>
+          </div>
+          <button onclick="resetFilters()" class="text-xs font-semibold text-pencil hover:text-charcoal flex items-center gap-1">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 필터 초기화
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <!-- Filter 1: Program Type -->
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">사업 유형</label>
+            <select id="filter-program" onchange="renderManagerList()" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-charcoal focus:border-spark focus:outline-none">
+              <option value="">전체 사업 유형</option>
+              <option value="공익활동형">공익활동형</option>
+              <option value="역량활동형">역량활동형</option>
+            </select>
+          </div>
+
+          <!-- Filter 2: Group Name -->
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">사업단</label>
+            <select id="filter-group" onchange="renderManagerList()" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-charcoal focus:border-spark focus:outline-none">
+              <option value="">전체 사업단</option>
+              <option value="공원환경관리">공원환경관리</option>
+              <option value="학교급식">학교급식</option>
+              <option value="노노케어">노노케어</option>
+              <option value="보육시설지원">보육시설지원</option>
+              <option value="공공시설관리">공공시설관리</option>
+              <option value="노인시설지원">노인시설지원</option>
+            </select>
+          </div>
+
+          <!-- Filter 3: Status -->
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">확인 상태</label>
+            <select id="filter-status" onchange="renderManagerList()" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-charcoal focus:border-spark focus:outline-none">
+              <option value="">전체 상태</option>
+              <option value="담당자 확인 중">담당자 확인 중</option>
+              <option value="확인 완료">확인 완료</option>
+            </select>
+          </div>
+
+          <!-- Filter 4: Date Filter -->
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">날짜 선택</label>
+            <input type="date" id="filter-date" onchange="renderManagerList()" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-charcoal focus:border-spark focus:outline-none">
+          </div>
+
+          <!-- Filter 5: Search Name -->
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">참여자 이름</label>
+            <div class="relative">
+              <input type="text" id="filter-search" onkeyup="renderManagerList()" placeholder="이름 검색..." class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm font-medium text-charcoal focus:border-spark focus:outline-none">
+              <i data-lucide="search" class="w-4 h-4 text-pencil absolute left-3 top-2.5"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs Table Section -->
+      <div class="bg-white rounded-3xl border-2 border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b-2 border-gray-100 flex flex-wrap items-center justify-between gap-3 bg-gray-50/50">
+          <div class="flex items-center gap-3">
+            <h3 class="font-extrabold text-charcoal text-lg">활동일지 목록</h3>
+            <span id="list-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-gray-200 text-charcoal">총 0건</span>
+          </div>
+          <div class="flex items-center gap-2 text-xs font-medium text-pencil">
+            <span class="inline-block w-3 h-3 rounded-full bg-amber-400"></span> 대기중
+            <span class="inline-block w-3 h-3 rounded-full bg-eager ml-2"></span> 확인완료
+          </div>
+        </div>
+
+        <!-- Table Responsive -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-gray-100/70 text-pencil uppercase text-xs font-bold border-b-2 border-gray-200">
+              <tr>
+                <th class="py-3.5 px-4 text-center w-12">
+                  <input type="checkbox" id="select-all-check" onchange="toggleSelectAll(this)" class="w-4 h-4 text-eager rounded border-gray-300 focus:ring-eager">
+                </th>
+                <th class="py-3.5 px-4">활동일자</th>
+                <th class="py-3.5 px-4">사업구분 / 사업단</th>
+                <th class="py-3.5 px-4">참여자 성함</th>
+                <th class="py-3.5 px-4">활동시간</th>
+                <th class="py-3.5 px-4">주요 활동 내용</th>
+                <th class="py-3.5 px-4 text-center">건강상태</th>
+                <th class="py-3.5 px-4 text-center">상태 / 체크</th>
+                <th class="py-3.5 px-4 text-center">관리</th>
+              </tr>
+            </thead>
+            <tbody id="logs-table-body" class="divide-y divide-gray-100">
+              <!-- Dynamically populated by JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden p-12 text-center space-y-3">
+          <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto text-pencil">
+            <i data-lucide="file-x-2" class="w-8 h-8"></i>
+          </div>
+          <p class="text-lg font-bold text-charcoal">조건에 맞는 활동일지가 없습니다.</p>
+          <p class="text-sm text-pencil">검색 필터를 변경하거나 새 활동일지를 작성해보세요.</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- 2. SENIOR VIEW (어르신 전용 모바일 작성 모드) -->
+    <!-- ======================================================== -->
+    <section id="senior-view" class="hidden max-w-2xl mx-auto space-y-6">
+
+      <!-- Header Card for Seniors -->
+      <div class="bg-gradient-to-r from-eager to-eager-dark text-white rounded-3xl p-6 sm:p-8 shadow-card text-center space-y-2 relative overflow-hidden">
+        <div class="inline-block bg-white/20 backdrop-blur-md px-4 py-1 rounded-full text-sm font-black mb-1">
+          👵 👴 어르신 활동일지 간편 작성
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-black tracking-tight">오늘 하루도 수고 많으셨습니다!</h2>
+        <p class="text-eager-light senior-text-lg font-medium">
+          성함과 오늘 하신 활동을 차례대로 눌러주세요.
+        </p>
+      </div>
+
+      <!-- Form Container -->
+      <div class="bg-white rounded-3xl p-6 sm:p-8 border-2 border-gray-200 shadow-card space-y-8">
+        
+        <!-- STEP 1: Program Group Selection -->
+        <div class="space-y-3">
+          <label class="block senior-text-xl font-black text-charcoal flex items-center gap-2">
+            <span class="w-8 h-8 rounded-full bg-eager text-white flex items-center justify-center text-base font-black">1</span>
+            참여하시는 사업단을 골라주세요
+          </label>
+          <div class="grid grid-cols-2 gap-3" id="senior-group-options">
+            <button type="button" onclick="selectSeniorGroup(this, '공원환경관리')" class="senior-group-btn p-4 rounded-2xl border-2 border-gray-300 font-extrabold senior-text-lg text-charcoal text-center hover:border-eager focus:outline-none transition-all">
+              🌳 공원환경관리
+            </button>
+            <button type="button" onclick="selectSeniorGroup(this, '학교급식')" class="senior-group-btn p-4 rounded-2xl border-2 border-gray-300 font-extrabold senior-text-lg text-charcoal text-center hover:border-eager focus:outline-none transition-all">
+              🍱 학교급식
+            </button>
+            <button type="button" onclick="selectSeniorGroup(this, '노노케어')" class="senior-group-btn p-4 rounded-2xl border-2 border-gray-300 font-extrabold senior-text-lg text-charcoal text-center hover:border-eager focus:outline-none transition-all">
+              🤝 노노케어
+            </button>
+            <button type="button" onclick="selectSeniorGroup(this, '보육시설지원')" class="senior-group-btn p-4 rounded-2xl border-2 border-gray-300 font-extrabold senior-text-lg text-charcoal text-center hover:border-eager focus:outline-none transition-all">
+              👶 보육시설지원
+            </button>
+            <button type="button" onclick="selectSeniorGroup(this, '공공시설관리')" class="senior-group-btn p-4 rounded-2xl border-2 border-gray-300 font-extrabold senior-text-lg text-charcoal text-center hover:border-eager focus:outline-none transition-all">
+              🏢 공공시설관리
+            </button>
+            <button type="button" onclick="selectSeniorGroup(this, '노인시설지원')" class="senior-group-btn p-4 rounded-2xl border-2 border-gray-300 font-extrabold senior-text-lg text-charcoal text-center hover:border-eager focus:outline-none transition-all">
+              🏡 노인시설지원
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 2: Senior Name Selection -->
+        <div class="space-y-3">
+          <label class="block senior-text-xl font-black text-charcoal flex items-center gap-2">
+            <span class="w-8 h-8 rounded-full bg-eager text-white flex items-center justify-center text-base font-black">2</span>
+            어르신의 성함을 선택해주세요
+          </label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="senior-name-list">
+            <!-- Dynamically populated based on selected group -->
+          </div>
+          <!-- Custom name input fallback -->
+          <div class="pt-2">
+            <input type="text" id="senior-custom-name" placeholder="목록에 성함이 없으시면 직접 입력하세요" class="w-full bg-gray-50 border-2 border-gray-300 rounded-2xl px-4 py-3.5 text-base sm:text-lg font-bold text-charcoal focus:border-spark focus:outline-none">
+          </div>
+        </div>
+
+        <!-- STEP 3: Date & Time Selection -->
+        <div class="space-y-4">
+          <label class="block senior-text-xl font-black text-charcoal flex items-center gap-2">
+            <span class="w-8 h-8 rounded-full bg-eager text-white flex items-center justify-center text-base font-black">3</span>
+            활동 날짜와 시간
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <span class="text-sm font-bold text-pencil block mb-1">활동한 날짜</span>
+              <input type="date" id="senior-date" class="w-full bg-gray-50 border-2 border-gray-300 rounded-2xl px-4 py-3 text-lg font-bold text-charcoal focus:border-spark focus:outline-none">
+            </div>
+            <div>
+              <span class="text-sm font-bold text-pencil block mb-1">활동 시간 (3시간 기준)</span>
+              <select id="senior-time-range" class="w-full bg-gray-50 border-2 border-gray-300 rounded-2xl px-4 py-3 text-lg font-bold text-charcoal focus:border-spark focus:outline-none">
+                <option value="09:00 ~ 12:00">오전 09:00 ~ 12:00 (3시간)</option>
+                <option value="09:30 ~ 12:30">오전 09:30 ~ 12:30 (3시간)</option>
+                <option value="11:30 ~ 14:30">오후 11:30 ~ 14:30 (3시간)</option>
+                <option value="13:00 ~ 16:00">오후 13:00 ~ 16:00 (3시간)</option>
+                <option value="14:00 ~ 17:00">오후 14:00 ~ 17:00 (3시간)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 4: Activity Checklist -->
+        <div class="space-y-3">
+          <label class="block senior-text-xl font-black text-charcoal flex items-center gap-2">
+            <span class="w-8 h-8 rounded-full bg-eager text-white flex items-center justify-center text-base font-black">4</span>
+            오늘 진행하신 활동을 터치해주세요
+          </label>
+          <div class="space-y-2.5" id="senior-activity-items">
+            <!-- Dynamic checkboxes according to group -->
+          </div>
+        </div>
+
+        <!-- STEP 5: Health Condition -->
+        <div class="space-y-3">
+          <label class="block senior-text-xl font-black text-charcoal flex items-center gap-2">
+            <span class="w-8 h-8 rounded-full bg-eager text-white flex items-center justify-center text-base font-black">5</span>
+            오늘 건강 상태는 어떠셨나요?
+          </label>
+          <div class="grid grid-cols-3 gap-3" id="senior-health-options">
+            <button type="button" onclick="selectSeniorHealth(this, '양호')" class="senior-health-btn p-4 rounded-2xl border-2 border-eager bg-eager-light/40 font-extrabold text-charcoal text-center hover:bg-eager-light transition-all">
+              <div class="text-3xl mb-1">😄</div>
+              <div class="senior-text-lg font-black text-eager-dark">건강해요</div>
+            </button>
+            <button type="button" onclick="selectSeniorHealth(this, '보통')" class="senior-health-btn p-4 rounded-2xl border-2 border-gray-200 font-extrabold text-charcoal text-center hover:bg-gray-100 transition-all">
+              <div class="text-3xl mb-1">😐</div>
+              <div class="senior-text-lg font-black text-pencil">보통이에요</div>
+            </button>
+            <button type="button" onclick="selectSeniorHealth(this, '불편/피로')" class="senior-health-btn p-4 rounded-2xl border-2 border-gray-200 font-extrabold text-charcoal text-center hover:bg-gray-100 transition-all">
+              <div class="text-3xl mb-1">🤒</div>
+              <div class="senior-text-lg font-black text-pencil">조금 힘들어요</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 6: Optional Memo -->
+        <div class="space-y-2">
+          <label class="block text-base font-bold text-pencil">
+            담당자에게 전하고 싶은 말씀 (선택)
+          </label>
+          <textarea id="senior-note" rows="2" placeholder="전달사항이나 특이사항이 있으시면 적어주세요." class="w-full bg-gray-50 border-2 border-gray-300 rounded-2xl p-4 text-base font-medium text-charcoal focus:border-spark focus:outline-none"></textarea>
+        </div>
+
+        <!-- Big Submit Button -->
+        <div class="pt-4">
+          <button type="button" onclick="submitSeniorLog()" class="duo-btn w-full bg-eager hover:bg-eager-dark text-white font-black senior-text-2xl py-5 rounded-3xl shadow-btn-green flex items-center justify-center gap-3">
+            <i data-lucide="check-circle" class="w-8 h-8"></i>
+            <span>활동일지 제출하기</span>
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODAL: LOG DETAIL & EDIT (담당자 상세조회 및 수정 모달) -->
+  <!-- ======================================================== -->
+  <div id="detail-modal" class="fixed inset-0 bg-night/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-2xl w-full border-2 border-gray-200 shadow-2xl overflow-hidden my-8 transform transition-all">
+      
+      <!-- Modal Header -->
+      <div class="p-6 bg-gray-50 border-b-2 border-gray-200 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-eager-light text-eager-dark flex items-center justify-center font-black">
+            <i data-lucide="edit-3" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-black text-charcoal" id="modal-title">활동일지 상세 및 수정</h3>
+            <p class="text-xs text-pencil" id="modal-subtitle">MD 파일 메타데이터 및 본문 수정</p>
+          </div>
+        </div>
+        <button onclick="closeModal()" class="w-9 h-9 rounded-full bg-gray-200 text-charcoal flex items-center justify-center hover:bg-gray-300">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body Form -->
+      <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+        <input type="hidden" id="modal-log-id">
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">활동 일자</label>
+            <input type="date" id="modal-date" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-charcoal">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">확인 상태</label>
+            <select id="modal-status" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-charcoal">
+              <option value="담당자 확인 중">담당자 확인 중</option>
+              <option value="확인 완료">확인 완료</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">사업구분 / 사업단</label>
+            <input type="text" id="modal-group" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-charcoal">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">참여자 성함</label>
+            <input type="text" id="modal-name" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-charcoal">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">활동 시간대</label>
+            <input type="text" id="modal-time-range" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-charcoal">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-pencil mb-1">건강상태</label>
+            <input type="text" id="modal-health" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-charcoal">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-pencil mb-1">주요 활동 항목 (줄바꿈으로 구분)</label>
+          <textarea id="modal-activities" rows="3" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl p-3 text-sm font-medium text-charcoal"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-pencil mb-1">특이사항 및 메모</label>
+          <textarea id="modal-note" rows="2" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl p-3 text-sm font-medium text-charcoal"></textarea>
+        </div>
+
+        <!-- Markdown Code Preview Accordion -->
+        <details class="bg-gray-100 rounded-2xl p-3 border border-gray-200">
+          <summary class="text-xs font-bold text-charcoal cursor-pointer flex items-center justify-between">
+            <span>📄 마크다운(MD) 파일 원본 보기</span>
+            <span class="text-spark text-xs">클릭하여 펼치기</span>
+          </summary>
+          <pre id="modal-raw-md" class="mt-2 p-3 bg-night text-fresh rounded-xl text-xs overflow-x-auto font-mono leading-relaxed"></pre>
+        </details>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-5 bg-gray-50 border-t-2 border-gray-200 flex items-center justify-between">
+        <button onclick="downloadSingleMd()" class="text-xs font-bold text-pencil hover:text-charcoal flex items-center gap-1.5">
+          <i data-lucide="download" class="w-4 h-4"></i> 이 파일 .md 다운로드
+        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-sm font-bold text-pencil hover:bg-gray-200">취소</button>
+          <button onclick="saveModalChanges()" class="duo-btn px-5 py-2.5 rounded-xl text-sm font-bold bg-eager text-white shadow-btn-green hover:bg-eager-dark">수정사항 저장</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-night text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 transform translate-y-24 opacity-0 transition-all duration-300 z-50">
+    <i id="toast-icon" data-lucide="check-circle" class="w-5 h-5 text-eager"></i>
+    <span id="toast-msg" class="text-sm font-bold">알림 메시지</span>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // Participant Roster by Program
+    const PARTICIPANT_DB = {
+      '공원환경관리': ['김영희', '이정호', '한기선', '박순덕', '오세훈'],
+      '학교급식': ['박철수', '김순자', '정인숙', '조병옥', '임재식'],
+      '노노케어': ['이순자', '강명자', '윤복순', '홍길동', '백남순'],
+      '보육시설지원': ['정영숙', '김민정', '박영자', '송미숙'],
+      '공공시설관리': ['최동훈', '안상태', '서정원', '고영식'],
+      '노인시설지원': ['오영자', '유금순', '장기출', '신말숙']
+    };
+
+    // Activity Checklist Items by Program
+    const ACTIVITY_CHECKLISTS = {
+      '공원환경관리': [
+        '산책로 쓰레기 수거 및 분리수거',
+        '벤치 및 운동기구 주변 환경 정비',
+        '공원 화단 잡초 제거 및 낙엽 정리',
+        '이용 주민 안전 보행 안내'
+      ],
+      '학교급식': [
+        '식당 테이블 소독 및 위생 정리',
+        '퇴식구 잔반 분리 지도 및 식판 정리',
+        '식수대 주변 물기 제거 및 정리정돈',
+        '학생 급식실 보행 안전 지도'
+      ],
+      '노노케어': [
+        '취약어르신 가정 방문 및 안부 확인',
+        '말벗 서비스 및 건강 상태 문진',
+        '생활환경 안전점검 (가스/전열기구)',
+        '복지관 프로그램 및 복지 정보 안내'
+      ],
+      '보육시설지원': [
+        '원아 등하원 및 야외활동 안전보조',
+        '놀이기구 및 장난감 소독 위생 관리',
+        '간식 및 점심 배부 보조',
+        '놀이방 및 교실 환경 정리'
+      ],
+      '공공시설관리': [
+        '주민센터 및 공공기관 주변 청결 유지',
+        '민원인 통행로 안전 확보 및 낙엽 청소',
+        '화장실 및 복도 소독 지원',
+        '분리수거장 정돈 및 쓰레기 배출 보조'
+      ],
+      '노인시설지원': [
+        '경로당 및 복지관 시설 방역 및 환기',
+        '프로그램실 교구 정리 및 좌석 배치',
+        '어르신 건강 체온 체크 보조',
+        '복도 및 계단 미끄럼 방지 점검'
+      ]
+    };
+
+    // Initial Sample In-Memory Logs (parsed from sample md files)
+    let activityLogs = [
+      {
+        id: '2026-09-29-공원환경관리-김영희',
+        fileName: '2026-09-29_공원환경관리_김영희.md',
+        date: '2026-09-29',
+        program_type: '공익활동형',
+        group_name: '공원환경관리',
+        name: '김영희',
+        status: '확인 완료',
+        hours: 3,
+        time_range: '09:00 ~ 12:00',
+        activity_items: ['산책로 쓰레기 수거 및 분리수거', '벤치 및 공용 운동기구 주변 환경 정비'],
+        health_condition: '양호',
+        note: '가을 낙엽이 많아 산책로 위주로 집중 청소함.',
+        reviewer: '담당자(이수진)',
+        reviewed_at: '2026-09-29 13:30'
+      },
+      {
+        id: '2026-09-29-학교급식-박철수',
+        fileName: '2026-09-29_학교급식_박철수.md',
+        date: '2026-09-29',
+        program_type: '공익활동형',
+        group_name: '학교급식',
+        name: '박철수',
+        status: '담당자 확인 중',
+        hours: 3,
+        time_range: '11:30 ~ 14:30',
+        activity_items: ['식당 테이블 소독 및 정리', '퇴식구 잔반 분리 지도 및 식판 정리'],
+        health_condition: '양호',
+        note: '특이사항 없이 안전하게 급식 배식 보조 완료함.',
+        reviewer: '',
+        reviewed_at: ''
+      },
+      {
+        id: '2026-09-29-노노케어-이순자',
+        fileName: '2026-09-29_노노케어_이순자.md',
+        date: '2026-09-29',
+        program_type: '공익활동형',
+        group_name: '노노케어',
+        name: '이순자',
+        status: '담당자 확인 중',
+        hours: 3,
+        time_range: '13:00 ~ 16:00',
+        activity_items: ['취약어르신 가정 방문 및 안부 확인', '말벗 서비스 및 건강 상태 문진', '생활환경 안전점검 (가스/전열기구)'],
+        health_condition: '양호',
+        note: '방문 대상 어르신 감기 기운 있으셔서 복지관 담당자께 전달 요청.',
+        reviewer: '',
+        reviewed_at: ''
+      },
+      {
+        id: '2026-09-29-보육시설지원-정영숙',
+        fileName: '2026-09-29_보육시설지원_정영숙.md',
+        date: '2026-09-29',
+        program_type: '역량활동형',
+        group_name: '보육시설지원',
+        name: '정영숙',
+        status: '확인 완료',
+        hours: 3,
+        time_range: '09:30 ~ 12:30',
+        activity_items: ['원아 하원 및 야외활동 안전보조', '교구 소독 및 놀이방 환경정리', '간식 배부 보조'],
+        health_condition: '양호',
+        note: '어린이집 원아들 낮잠 시간 전 교구 정리 및 손씻기 지도 보조함.',
+        reviewer: '담당자(김민지)',
+        reviewed_at: '2026-09-29 14:00'
+      },
+      {
+        id: '2026-09-28-공공시설관리-최동훈',
+        fileName: '2026-09-28_공공시설관리_최동훈.md',
+        date: '2026-09-28',
+        program_type: '공익활동형',
+        group_name: '공공시설관리',
+        name: '최동훈',
+        status: '확인 완료',
+        hours: 3,
+        time_range: '13:00 ~ 16:00',
+        activity_items: ['주민센터 주변 화단 잡초 제거', '민원인 통행로 낙엽 청소 및 쓰레기 분리'],
+        health_condition: '양호',
+        note: '특이사항 없이 활동 일정대로 수행함.',
+        reviewer: '담당자(이수진)',
+        reviewed_at: '2026-09-28 17:00'
+      }
+    ];
+
+    // Local Storage Sync
+    function loadSavedLogs() {
+      const saved = localStorage.getItem('hwaseong_activity_logs');
+      if (saved) {
+        try {
+          activityLogs = JSON.parse(saved);
+        } catch (e) {
+          console.error("Failed to parse saved logs", e);
+        }
+      }
+    }
+
+    function persistLogs() {
+      localStorage.setItem('hwaseong_activity_logs', JSON.stringify(activityLogs));
+    }
+
+    // Senior State
+    let seniorSelectedGroup = '공원환경관리';
+    let seniorSelectedName = '';
+    let seniorSelectedHealth = '양호';
+
+    // File System Directory Handle (if opened)
+    let directoryHandle = null;
+
+    // Initialize App
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedLogs();
+      lucide.createIcons();
+      initSeniorView();
+      renderManagerList();
+      updateStats();
+
+      // Set today's date on filters and senior form
+      const today = new Date().toISOString().split('T')[0];
+      const seniorDateInput = document.getElementById('senior-date');
+      if (seniorDateInput) seniorDateInput.value = today;
+    });
+
+    // Mode Switcher
+    function switchMode(mode) {
+      const managerView = document.getElementById('manager-view');
+      const seniorView = document.getElementById('senior-view');
+      const tabMgr = document.getElementById('tab-btn-manager');
+      const tabSnr = document.getElementById('tab-btn-senior');
+
+      if (mode === 'manager') {
+        managerView.classList.remove('hidden');
+        seniorView.classList.add('hidden');
+        tabMgr.className = 'px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all bg-white text-eager-dark shadow-sm border border-gray-200';
+        tabSnr.className = 'px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all text-pencil hover:text-charcoal';
+        renderManagerList();
+        updateStats();
+      } else {
+        managerView.classList.add('hidden');
+        seniorView.classList.remove('hidden');
+        tabSnr.className = 'px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all bg-white text-eager-dark shadow-sm border border-gray-200';
+        tabMgr.className = 'px-4 py-2 rounded-xl font-bold text-sm sm:text-base flex items-center gap-2 transition-all text-pencil hover:text-charcoal';
+        initSeniorView();
+      }
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // MANAGER VIEW LOGIC
+    // ==========================================
+
+    function updateStats() {
+      const total = activityLogs.length;
+      const pending = activityLogs.filter(l => l.status === '담당자 확인 중').length;
+      const approved = activityLogs.filter(l => l.status === '확인 완료').length;
+
+      document.getElementById('stat-total').innerText = `${total}건`;
+      document.getElementById('stat-pending').innerText = `${pending}건`;
+      document.getElementById('stat-approved').innerText = `${approved}건`;
+    }
+
+    function renderManagerList() {
+      const pFilter = document.getElementById('filter-program').value;
+      const gFilter = document.getElementById('filter-group').value;
+      const sFilter = document.getElementById('filter-status').value;
+      const dFilter = document.getElementById('filter-date').value;
+      const search = document.getElementById('filter-search').value.trim().toLowerCase();
+
+      const tbody = document.getElementById('logs-table-body');
+      const emptyState = document.getElementById('empty-state');
+      tbody.innerHTML = '';
+
+      const filtered = activityLogs.filter(log => {
+        if (pFilter && log.program_type !== pFilter) return false;
+        if (gFilter && log.group_name !== gFilter) return false;
+        if (sFilter && log.status !== sFilter) return false;
+        if (dFilter && log.date !== dFilter) return false;
+        if (search && !log.name.toLowerCase().includes(search) && !log.group_name.toLowerCase().includes(search)) return false;
+        return true;
+      });
+
+      document.getElementById('list-count-badge').innerText = `총 ${filtered.length}건`;
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+      }
+
+      filtered.forEach((log) => {
+        const isApproved = log.status === '확인 완료';
+        const tr = document.createElement('tr');
+        tr.className = `hover:bg-gray-50/80 transition-colors ${isApproved ? 'bg-white' : 'bg-amber-50/20'}`;
+
+        const activityBadges = (log.activity_items || []).map(item => 
+          `<span class="inline-block bg-gray-100 text-charcoal text-xs px-2 py-0.5 rounded-md mr-1 mb-1">✓ ${item}</span>`
+        ).join('');
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 text-center">
+            <input type="checkbox" data-id="${log.id}" class="row-checkbox w-4 h-4 text-eager rounded border-gray-300 focus:ring-eager">
+          </td>
+          <td class="py-3 px-4 font-bold text-charcoal whitespace-nowrap">
+            ${log.date}
+          </td>
+          <td class="py-3 px-4">
+            <span class="text-xs font-semibold text-pencil block">${log.program_type || '공익활동형'}</span>
+            <span class="font-extrabold text-charcoal">${log.group_name}</span>
+          </td>
+          <td class="py-3 px-4 font-black text-charcoal text-base whitespace-nowrap">
+            ${log.name}
+          </td>
+          <td class="py-3 px-4 text-xs font-medium text-pencil whitespace-nowrap">
+            <div>${log.time_range || '09:00 ~ 12:00'}</div>
+            <div class="text-charcoal font-bold">(${log.hours || 3}시간)</div>
+          </td>
+          <td class="py-3 px-4 max-w-xs">
+            <div class="flex flex-wrap">${activityBadges || '<span class="text-pencil text-xs">활동 내용 없음</span>'}</div>
+            ${log.note ? `<p class="text-xs text-pencil mt-1 italic">💬 "${log.note}"</p>` : ''}
+          </td>
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${log.health_condition === '양호' ? 'bg-eager-light text-eager-dark' : 'bg-gray-200 text-pencil'}">
+              ${log.health_condition || '양호'}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            <button onclick="toggleLogStatus('${log.id}')" class="duo-btn px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 mx-auto ${
+              isApproved 
+                ? 'bg-eager-light text-eager-dark border border-eager/40 hover:bg-eager hover:text-white' 
+                : 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-500 hover:text-white'
+            }">
+              <i data-lucide="${isApproved ? 'check-circle-2' : 'clock'}" class="w-3.5 h-3.5"></i>
+              <span>${log.status}</span>
+            </button>
+          </td>
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            <div class="flex items-center justify-center gap-1">
+              <button onclick="openDetailModal('${log.id}')" class="p-1.5 text-pencil hover:text-spark hover:bg-spark-light rounded-lg transition-all" title="상세보기 및 수정">
+                <i data-lucide="edit" class="w-4 h-4"></i>
+              </button>
+              <button onclick="deleteLog('${log.id}')" class="p-1.5 text-pencil hover:text-duoRed hover:bg-red-50 rounded-lg transition-all" title="삭제">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+
+      lucide.createIcons();
+    }
+
+    function toggleLogStatus(id) {
+      const log = activityLogs.find(l => l.id === id);
+      if (!log) return;
+
+      if (log.status === '담당자 확인 중') {
+        log.status = '확인 완료';
+        log.reviewer = '담당자';
+        log.reviewed_at = new Date().toLocaleString('ko-KR');
+        showToast(`${log.name} 어르신의 활동일지가 [확인 완료] 처리되었습니다.`, 'check-circle');
+      } else {
+        log.status = '담당자 확인 중';
+        log.reviewer = '';
+        log.reviewed_at = '';
+        showToast(`${log.name} 어르신의 활동일지가 [확인 중]으로 변경되었습니다.`, 'clock');
+      }
+
+      persistLogs();
+      renderManagerList();
+      updateStats();
+    }
+
+    function triggerBatchApprove() {
+      const checkedBoxes = document.querySelectorAll('.row-checkbox:checked');
+      let targetIds = [];
+      if (checkedBoxes.length > 0) {
+        checkedBoxes.forEach(cb => targetIds.push(cb.getAttribute('data-id')));
+      } else {
+        // Approve all pending
+        targetIds = activityLogs.filter(l => l.status === '담당자 확인 중').map(l => l.id);
+      }
+
+      if (targetIds.length === 0) {
+        showToast('확인 완료로 변경할 대기 항목이 없습니다.', 'info');
+        return;
+      }
+
+      targetIds.forEach(id => {
+        const log = activityLogs.find(l => l.id === id);
+        if (log) {
+          log.status = '확인 완료';
+          log.reviewer = '담당자(일괄)';
+          log.reviewed_at = new Date().toLocaleString('ko-KR');
+        }
+      });
+
+      persistLogs();
+      renderManagerList();
+      updateStats();
+      showToast(`${targetIds.length}건의 활동일지가 일괄 확인 완료되었습니다! 🎉`, 'check-check');
+    }
+
+    function toggleSelectAll(master) {
+      const checkboxes = document.querySelectorAll('.row-checkbox');
+      checkboxes.forEach(cb => cb.checked = master.checked);
+    }
+
+    function resetFilters() {
+      document.getElementById('filter-program').value = '';
+      document.getElementById('filter-group').value = '';
+      document.getElementById('filter-status').value = '';
+      document.getElementById('filter-date').value = '';
+      document.getElementById('filter-search').value = '';
+      renderManagerList();
+    }
+
+    function deleteLog(id) {
+      const log = activityLogs.find(l => l.id === id);
+      if (!log) return;
+      if (confirm(`정말로 ${log.date} ${log.name} 어르신의 활동일지를 삭제하시겠습니까?`)) {
+        activityLogs = activityLogs.filter(l => l.id !== id);
+        persistLogs();
+        renderManagerList();
+        updateStats();
+        showToast('활동일지가 삭제되었습니다.', 'trash-2');
+      }
+    }
+
+    // ==========================================
+    // FILE SYSTEM & MARKDOWN GENERATION
+    // ==========================================
+
+    function generateMarkdownString(log) {
+      const yamlFrontmatter = {
+        id: log.id,
+        date: log.date,
+        program_type: log.program_type || '공익활동형',
+        group_name: log.group_name,
+        name: log.name,
+        status: log.status,
+        hours: log.hours || 3,
+        time_range: log.time_range || '09:00 ~ 12:00',
+        activity_items: log.activity_items || [],
+        health_condition: log.health_condition || '양호',
+        note: log.note || '',
+        reviewer: log.reviewer || '',
+        reviewed_at: log.reviewed_at || ''
+      };
+
+      const yamlStr = jsyaml.dump(yamlFrontmatter).trim();
+      const activityChecks = (log.activity_items || []).map(item => `  - [x] ${item}`).join('\n');
+
+      return `---
+${yamlStr}
+---
+
+# 노인일자리 활동일지
+
+- **일자**: ${log.date}
+- **사업구분**: ${log.program_type || '공익활동형'} > ${log.group_name}
+- **참여자**: ${log.name}
+- **활동시간**: ${log.time_range || '09:00 ~ 12:00'} (${log.hours || 3}시간)
+- **주요 활동**:
+${activityChecks || '  - 활동 기록 없음'}
+- **건강상태**: ${log.health_condition || '양호'}
+- **특이사항**: ${log.note || '특이사항 없음'}
+- **담당자 확인**: ${log.status === '확인 완료' ? `확인 완료 (${log.reviewer || '담당자'}, ${log.reviewed_at || ''})` : '담당자 확인 중'}
+`;
+    }
+
+    async function openLocalFolder() {
+      if (!window.showDirectoryPicker) {
+        showToast('이 브라우저는 폴더 직접 열기 API를 지원하지 않아 파일 열기로 대체합니다.', 'alert-circle');
+        return;
+      }
+
+      try {
+        directoryHandle = await window.showDirectoryPicker();
+        const loadedLogs = [];
+
+        for await (const entry of directoryHandle.values()) {
+          if (entry.kind === 'file' && entry.name.endsWith('.md')) {
+            const file = await entry.getFile();
+            const text = await file.text();
+            const parsed = parseMarkdownFile(text, entry.name);
+            if (parsed) loadedLogs.push(parsed);
+          }
+        }
+
+        if (loadedLogs.length > 0) {
+          activityLogs = loadedLogs;
+          persistLogs();
+          renderManagerList();
+          updateStats();
+          document.getElementById('folder-status-badge').innerText = `연동된 폴더: ${directoryHandle.name} (${loadedLogs.length}개 파일 로드됨)`;
+          showToast(`폴더에서 ${loadedLogs.length}개의 활동일지(.md)를 성공적으로 읽어왔습니다! 📁`, 'folder-check');
+        } else {
+          showToast('선택한 폴더에 .md 활동일지 파일이 없습니다.', 'info');
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error("Folder read error:", err);
+          showToast('폴더를 열지 못했습니다: ' + err.message, 'alert-circle');
+        }
+      }
+    }
+
+    function parseMarkdownFile(content, fileName) {
+      try {
+        const fmRegex = /^---\r?\n([\s\S]*?)\r?\n---/;
+        const match = content.match(fmRegex);
+        if (match) {
+          const yamlData = jsyaml.load(match[1]);
+          return {
+            id: yamlData.id || fileName.replace('.md', ''),
+            fileName: fileName,
+            date: yamlData.date || '2026-09-29',
+            program_type: yamlData.program_type || '공익활동형',
+            group_name: yamlData.group_name || '공원환경관리',
+            name: yamlData.name || '참여자',
+            status: yamlData.status || '담당자 확인 중',
+            hours: yamlData.hours || 3,
+            time_range: yamlData.time_range || '09:00 ~ 12:00',
+            activity_items: Array.isArray(yamlData.activity_items) ? yamlData.activity_items : [],
+            health_condition: yamlData.health_condition || '양호',
+            note: yamlData.note || '',
+            reviewer: yamlData.reviewer || '',
+            reviewed_at: yamlData.reviewed_at || ''
+          };
+        }
+      } catch (e) {
+        console.warn("Could not parse frontmatter in", fileName, e);
+      }
+      return null;
+    }
+
+    // Export to Excel (.xlsx)
+    function exportToExcel() {
+      const rows = activityLogs.map(log => ({
+        '활동일자': log.date,
+        '사업구분': log.program_type || '공익활동형',
+        '사업단명': log.group_name,
+        '참여자성함': log.name,
+        '활동시간대': log.time_range || '09:00 ~ 12:00',
+        '인정시간(H)': log.hours || 3,
+        '주요활동내역': (log.activity_items || []).join('; '),
+        '건강상태': log.health_condition || '양호',
+        '특이사항/메모': log.note || '',
+        '확인상태': log.status,
+        '확인자': log.reviewer || '',
+        '확인일시': log.reviewed_at || ''
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "활동일지_집계표");
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `노인일자리_활동일지_집계_${todayStr}.xlsx`);
+      showToast('엑셀 파일(XLSX) 다운로드가 완료되었습니다. 📊', 'file-spreadsheet');
+    }
+
+    // ==========================================
+    // DETAIL & EDIT MODAL
+    // ==========================================
+
+    let currentEditingLogId = null;
+
+    function openDetailModal(id) {
+      const log = activityLogs.find(l => l.id === id);
+      if (!log) return;
+
+      currentEditingLogId = id;
+      document.getElementById('modal-log-id').value = log.id;
+      document.getElementById('modal-date').value = log.date;
+      document.getElementById('modal-status').value = log.status;
+      document.getElementById('modal-group').value = log.group_name;
+      document.getElementById('modal-name').value = log.name;
+      document.getElementById('modal-time-range').value = log.time_range || '09:00 ~ 12:00';
+      document.getElementById('modal-health').value = log.health_condition || '양호';
+      document.getElementById('modal-activities').value = (log.activity_items || []).join('\n');
+      document.getElementById('modal-note').value = log.note || '';
+
+      // Raw Markdown preview
+      document.getElementById('modal-raw-md').innerText = generateMarkdownString(log);
+
+      document.getElementById('detail-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('detail-modal').classList.add('hidden');
+      currentEditingLogId = null;
+    }
+
+    function saveModalChanges() {
+      const log = activityLogs.find(l => l.id === currentEditingLogId);
+      if (!log) return;
+
+      log.date = document.getElementById('modal-date').value;
+      log.status = document.getElementById('modal-status').value;
+      log.group_name = document.getElementById('modal-group').value;
+      log.name = document.getElementById('modal-name').value;
+      log.time_range = document.getElementById('modal-time-range').value;
+      log.health_condition = document.getElementById('modal-health').value;
+      log.note = document.getElementById('modal-note').value;
+
+      const actText = document.getElementById('modal-activities').value;
+      log.activity_items = actText.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+      if (log.status === '확인 완료' && !log.reviewer) {
+        log.reviewer = '담당자';
+        log.reviewed_at = new Date().toLocaleString('ko-KR');
+      }
+
+      persistLogs();
+      renderManagerList();
+      updateStats();
+      closeModal();
+      showToast('활동일지 수정사항이 저장되었습니다. 💾', 'save');
+    }
+
+    function downloadSingleMd() {
+      const log = activityLogs.find(l => l.id === currentEditingLogId);
+      if (!log) return;
+      const mdContent = generateMarkdownString(log);
+      const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${log.date}_${log.group_name}_${log.name}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ==========================================
+    // SENIOR VIEW LOGIC (어르신 모바일 모드)
+    // ==========================================
+
+    function initSeniorView() {
+      renderSeniorNames(seniorSelectedGroup);
+      renderSeniorActivities(seniorSelectedGroup);
+    }
+
+    function selectSeniorGroup(btn, groupName) {
+      seniorSelectedGroup = groupName;
+      document.querySelectorAll('.senior-group-btn').forEach(b => {
+        b.className = 'senior-group-btn p-4 rounded-2xl border-2 border-gray-300 font-extrabold senior-text-lg text-charcoal text-center hover:border-eager focus:outline-none transition-all';
+      });
+      btn.className = 'senior-group-btn p-4 rounded-2xl border-2 border-eager bg-eager-light/40 font-black senior-text-lg text-eager-dark text-center focus:outline-none transition-all shadow-sm';
+
+      renderSeniorNames(groupName);
+      renderSeniorActivities(groupName);
+    }
+
+    function renderSeniorNames(groupName) {
+      const container = document.getElementById('senior-name-list');
+      container.innerHTML = '';
+      const names = PARTICIPANT_DB[groupName] || ['김영희', '이정호', '박철수', '이순자'];
+
+      names.forEach((name, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const isFirst = idx === 0 && !seniorSelectedName;
+        if (isFirst) seniorSelectedName = name;
+
+        btn.className = `senior-name-btn p-3.5 rounded-2xl border-2 font-black senior-text-xl text-center transition-all ${
+          seniorSelectedName === name 
+            ? 'border-spark bg-spark-light text-spark-dark shadow-sm' 
+            : 'border-gray-300 bg-white text-charcoal hover:border-spark'
+        }`;
+        btn.innerText = name;
+        btn.onclick = () => {
+          seniorSelectedName = name;
+          document.querySelectorAll('.senior-name-btn').forEach(b => {
+            b.className = 'senior-name-btn p-3.5 rounded-2xl border-2 border-gray-300 bg-white font-black senior-text-xl text-charcoal text-center hover:border-spark transition-all';
+          });
+          btn.className = 'senior-name-btn p-3.5 rounded-2xl border-2 border-spark bg-spark-light font-black senior-text-xl text-spark-dark text-center shadow-sm transition-all';
+          document.getElementById('senior-custom-name').value = '';
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function renderSeniorActivities(groupName) {
+      const container = document.getElementById('senior-activity-items');
+      container.innerHTML = '';
+      const items = ACTIVITY_CHECKLISTS[groupName] || [
+        '담당 구역 환경정리 및 쓰레기 수거',
+        '안전 수칙 준수 및 주변 점검'
+      ];
+
+      items.forEach((item, index) => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-3 p-3.5 bg-gray-50 border-2 border-gray-200 rounded-2xl cursor-pointer hover:bg-eager-light/20 transition-all';
+        label.innerHTML = `
+          <input type="checkbox" checked value="${item}" class="senior-act-checkbox w-6 h-6 text-eager rounded-lg border-2 border-gray-300 focus:ring-eager">
+          <span class="senior-text-lg font-bold text-charcoal">${item}</span>
+        `;
+        container.appendChild(label);
+      });
+    }
+
+    function selectSeniorHealth(btn, condition) {
+      seniorSelectedHealth = condition;
+      document.querySelectorAll('.senior-health-btn').forEach(b => {
+        b.className = 'senior-health-btn p-4 rounded-2xl border-2 border-gray-200 font-extrabold text-charcoal text-center hover:bg-gray-100 transition-all';
+        const titleDiv = b.querySelector('.senior-text-lg');
+        if (titleDiv) titleDiv.className = 'senior-text-lg font-black text-pencil';
+      });
+
+      btn.className = 'senior-health-btn p-4 rounded-2xl border-2 border-eager bg-eager-light/40 font-extrabold text-charcoal text-center transition-all';
+      const activeTitle = btn.querySelector('.senior-text-lg');
+      if (activeTitle) activeTitle.className = 'senior-text-lg font-black text-eager-dark';
+    }
+
+    function submitSeniorLog() {
+      let finalName = seniorSelectedName;
+      const customName = document.getElementById('senior-custom-name').value.trim();
+      if (customName) finalName = customName;
+
+      if (!finalName) {
+        alert('어르신의 성함을 선택하거나 입력해주세요!');
+        return;
+      }
+
+      const dateVal = document.getElementById('senior-date').value || new Date().toISOString().split('T')[0];
+      const timeVal = document.getElementById('senior-time-range').value;
+      const noteVal = document.getElementById('senior-note').value.trim();
+
+      const checkedItems = [];
+      document.querySelectorAll('.senior-act-checkbox:checked').forEach(cb => {
+        checkedItems.push(cb.value);
+      });
+
+      const newLog = {
+        id: `${dateVal}-${seniorSelectedGroup}-${finalName}`,
+        fileName: `${dateVal}_${seniorSelectedGroup}_${finalName}.md`,
+        date: dateVal,
+        program_type: seniorSelectedGroup === '보육시설지원' || seniorSelectedGroup === '노인시설지원' ? '역량활동형' : '공익활동형',
+        group_name: seniorSelectedGroup,
+        name: finalName,
+        status: '담당자 확인 중',
+        hours: 3,
+        time_range: timeVal,
+        activity_items: checkedItems,
+        health_condition: seniorSelectedHealth,
+        note: noteVal,
+        reviewer: '',
+        reviewed_at: ''
+      };
+
+      // Check if already exists, replace or add
+      const existingIdx = activityLogs.findIndex(l => l.id === newLog.id);
+      if (existingIdx >= 0) {
+        activityLogs[existingIdx] = newLog;
+      } else {
+        activityLogs.unshift(newLog);
+      }
+
+      persistLogs();
+
+      // Confetti celebration!
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+
+      showToast(`🎉 ${finalName} 어르신의 활동일지가 성공적으로 제출되었습니다!`, 'check-circle');
+
+      // Auto switch back to manager or stay with success notification
+      setTimeout(() => {
+        switchMode('manager');
+      }, 1500);
+    }
+
+    // Toast Utility
+    function showToast(msg, iconName = 'check-circle') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMsg.innerText = msg;
+      toastIcon.setAttribute('data-lucide', iconName);
+      lucide.createIcons();
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
